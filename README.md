@@ -9,7 +9,7 @@ Este proyecto es un **esqueleto listo** para que los estudiantes practiquen **pr
   - `@SpringBootTest` + `@AutoConfigureMockMvc` (controlador REST)
 
 ## Requisitos
-- Java 17+
+- Java 25+
 - Maven 3.9+
 
 ## Ejecutar la app
