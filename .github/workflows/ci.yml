@@ -27,4 +27,6 @@ jobs:
             uses: actions/upload-artifact@v4
             with:
               name: reportes-pruebas
-              path: target/reports/
+              path: |
+                target/reports/
+                target/site/jacoco/
