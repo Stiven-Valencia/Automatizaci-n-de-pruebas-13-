@@ -80,4 +80,11 @@ class ProductoControllerIT {
         mockMvc.perform(delete("/productos/{id}", existingId))
                 .andExpect(status().isNoContent());
     }
+
+    @Test
+    void eliminarProductoInexistenteDevuelve404() throws Exception {
+        mockMvc.perform(delete("/productos/{id}", 9999))
+            .andExpect(status().isNotFound());
+    }
+
 }

@@ -40,4 +40,11 @@ class ProductoServiceTest {
         assertThatThrownBy(() -> service.crear("Tablet", new BigDecimal("-1.00"), 1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void stockNegativoLanzaIllegalArgument() {
+        assertThatThrownBy(() -> service.crear("Impresora", new BigDecimal("150.00"), -1))
+            .isInstanceOf(IllegalArgumentException.class);
+}
+
 }
