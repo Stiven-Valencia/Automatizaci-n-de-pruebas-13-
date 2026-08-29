@@ -1,37 +1,126 @@
-# Pruebas de Integración con Spring Boot Test
+# API de Productos — Pruebas de Integración con Spring Boot
 
-Proyecto de práctica de **pruebas de integración** en Spring Boot sobre un CRUD de `Producto`:
-- **Capas**: controlador, servicio, repositorio, entidad `Producto`.
-- **Base de datos en memoria H2** (perfil de test).
-- **Tipos de prueba** incluidos:
-  - `@DataJpaTest` (repositorio)
-  - `@SpringBootTest` (servicio)
-  - `@SpringBootTest` + `@AutoConfigureMockMvc` (controlador REST)
+API REST para la gestión de productos, construida con Spring Boot 3.5 y base de datos
+H2 en memoria. El proyecto sirve como caso de estudio de **pruebas de integración
+automatizadas**: cubre las tres capas de la aplicación (controlador, servicio y
+repositorio) con 15 pruebas que se ejecutan automáticamente en cada cambio.
+
+## Tecnologías
+
+| Componente | Versión |
+|---|---|
+| Java | 17 o superior (probado con Temurin 21) |
+| Spring Boot | 3.5.16 |
+| Base de datos | H2 en memoria |
+| Persistencia | Spring Data JPA / Hibernate |
+| Pruebas | JUnit 5, AssertJ, MockMvc |
+| Cobertura | JaCoCo 0.8.14 |
+| Construcción | Maven 3.9+ |
+
+---
+
+## Qué hace la aplicación
+
+Expone un CRUD de productos sobre una base de datos en memoria. Cada producto tiene:
+
+| Campo | Tipo | Restricciones |
+|---|---|---|
+| `id` | Long | Generado por la base de datos |
+| `nombre` | String | Obligatorio y único |
+| `precio` | BigDecimal | Obligatorio, 12 dígitos con 2 decimales, no negativo |
+| `stock` | Integer | Obligatorio, no negativo |
+
+Reglas de negocio implementadas en `ProductoService`:
+
+- El precio no puede ser negativo → `IllegalArgumentException`
+- El stock no puede ser negativo → `IllegalArgumentException`
+- Consultar o eliminar un id inexistente → `NotFoundException`
+
+### Endpoints
+
+| Método | Ruta | Códigos | Descripción |
+|---|---|---|---|
+| `GET` | `/productos` | `200` | Lista todos los productos |
+| `POST` | `/productos` | `201` | Crea un producto |
+| `GET` | `/productos/{id}` | `200` · `404` | Consulta un producto por id |
+| `DELETE` | `/productos/{id}` | `204` · `404` | Elimina un producto por id |
+
+Ejemplos de uso:
+
+```bash
+# Listar productos
+curl http://localhost:8080/productos
+
+# Crear un producto
+curl -X POST http://localhost:8080/productos \
+  -H "Content-Type: application/json" \
+  -d '{"nombre":"Teclado","precio":120500,"stock":10}'
+
+# Consultar por id
+curl http://localhost:8080/productos/1
+
+# Eliminar
+curl -X DELETE http://localhost:8080/productos/1
+```
+
+> **Limitación conocida:** enviar un precio o stock negativo devuelve `500`, no `400`.
+> Las validaciones existen en el servicio, pero no hay un manejador que traduzca la
+> excepción a una respuesta HTTP adecuada. Lo resuelve la actividad pendiente 1.
+
+---
 
 ## Requisitos
-- Java 17 o superior (probado con Temurin 21)
-- Maven 3.9+
 
-## Ejecutar la app
+- Java 17 o superior
+- Maven 3.9 o superior
+
+Verifica tu instalación antes de empezar:
+
+```bash
+java -version
+mvn -v
+```
+
+## Ejecutar la aplicación
+
 ```bash
 mvn spring-boot:run
 ```
 
-La API queda en `http://localhost:8080/productos` y la consola H2 en `http://localhost:8080/h2-console`.
+| Recurso | URL |
+|---|---|
+| API | http://localhost:8080/productos |
+| Consola H2 | http://localhost:8080/h2-console |
 
-## Ejecutar pruebas
+Para entrar a la consola H2: JDBC URL `jdbc:h2:mem:prodapp`, usuario `sa`, contraseña
+vacía. Al ser una base de datos en memoria, **los datos se pierden al detener la
+aplicación**.
+
+## Ejecutar las pruebas
+
 ```bash
 mvn clean verify
 ```
 
-Se usa `verify` y no `test` porque las pruebas están repartidas en dos plugins:
+> ⚠️ Usa `verify`, **no** `mvn test`. Las pruebas están repartidas entre dos plugins y
+> `test` solo ejecuta poco más de la mitad.
 
-| Plugin | Clases que ejecuta | Pruebas |
-|---|---|---|
-| surefire | `*Test` | repositorio (4) y servicio (4) |
-| failsafe | `*IT` | controlador REST (6) |
+| Plugin | Clases que ejecuta | Pruebas | Se ejecutan con |
+|---|---|---|---|
+| surefire | `*Test` | 9 | `mvn test` y `mvn verify` |
+| failsafe | `*IT` | 6 | solo `mvn verify` |
 
-`mvn test` solo ejecutaría las 8 de surefire; `mvn verify` ejecuta las 14.
+### Suite de pruebas
+
+| Clase | Tipo | Nº | Qué valida |
+|---|---|---|---|
+| `ProductoRepositoryTest` | `@DataJpaTest` | 4 | Guardado, consulta por id, eliminación y carga de los datos iniciales |
+| `ProductoServiceTest` | `@SpringBootTest` | 5 | Lógica de negocio y manejo de excepciones |
+| `ProductoControllerIT` | `@SpringBootTest` + `MockMvc` | 6 | Los cuatro endpoints, incluidos sus códigos de error |
+
+Las pruebas usan el perfil `test` (`application-test.properties`), que apunta a una base
+de datos H2 independiente de la aplicación y la recrea en cada ejecución. Los datos
+iniciales están en `src/test/resources/data.sql`.
 
 ## Reportes
 
@@ -41,31 +130,66 @@ Tras `mvn clean verify` se generan automáticamente:
 |---|---|
 | Pruebas de repositorio y servicio | `target/reports/surefire.html` |
 | Pruebas del controlador REST | `target/reports/failsafe.html` |
-| Cobertura de código (JaCoCo) | `target/site/jacoco/index.html` |
+| Cobertura de código | `target/site/jacoco/index.html` |
 
-Cobertura actual: **100%** en `ProductoService` y `ProductoController`.
+Cobertura actual:
+
+| Clase | Cobertura |
+|---|---|
+| `ProductoService` | 100 % |
+| `ProductoController` | 100 % |
+| `NotFoundException` | 100 % |
+| **Total del proyecto** | **80 %** |
+
+El 20 % restante corresponde a los métodos `equals`/`hashCode` de la entidad y al
+`main()` de Spring Boot: código sin lógica de negocio, cuya cobertura no aportaría valor.
 
 ## Integración continua
 
 El workflow `.github/workflows/ci.yml` ejecuta `mvn clean verify` en cada push y pull
-request, y publica los tres reportes como artefacto descargable desde la pestaña
-**Actions** del repositorio.
+request, sobre una máquina Ubuntu limpia con JDK 21. Al terminar publica los tres
+reportes como un artefacto descargable desde la pestaña **Actions** del repositorio,
+incluso si alguna prueba falla.
 
-## Estructura clave
+---
+
+## Estructura del proyecto
+
 ```
-src/
- ├─ main/
- │   ├─ java/com/example/productos/...   # código fuente App
- │   └─ resources/application.properties # configuración H2 runtime
- └─ test/
-     ├─ java/com/example/productos/...   # pruebas (repo, servicio, controller)
-     └─ resources/
-         ├─ application-test.properties  # perfil test: H2 propia + create-drop
-         └─ data.sql                     # datos iniciales de prueba
+├─ .github/workflows/ci.yml            # Pipeline de integración continua
+├─ pom.xml                             # Dependencias y plugins de construcción
+└─ src/
+   ├─ main/
+   │  ├─ java/com/example/productos/
+   │  │  ├─ Application.java           # Punto de entrada
+   │  │  ├─ controller/                # Endpoints REST
+   │  │  ├─ service/                   # Lógica de negocio y excepciones
+   │  │  ├─ repository/                # Acceso a datos (Spring Data JPA)
+   │  │  └─ domain/                    # Entidad Producto
+   │  └─ resources/
+   │     └─ application.properties     # Configuración H2 de ejecución
+   └─ test/
+      ├─ java/com/example/productos/   # Pruebas de las tres capas
+      └─ resources/
+         ├─ application-test.properties # Perfil test: H2 propia, create-drop
+         └─ data.sql                    # Datos iniciales de prueba
 ```
 
-## Actividades sugeridas
-1. Agregar validaciones (Bean Validation) y probar errores 400.
-2. Añadir endpoints PUT/PATCH y sus pruebas.
-3. ~~Medir cobertura con JaCoCo.~~ ✅ implementado
-4. ~~Integrar un pipeline CI (GitHub Actions) que ejecute las pruebas.~~ ✅ implementado
+## Ramas
+
+| Rama | Propósito |
+|---|---|
+| `master` | Rama principal. Contiene el código estable del proyecto. |
+| `pruebas-integracion` | Configuración de failsafe y perfil de test, datos iniciales, cobertura con JaCoCo y pipeline de CI. |
+
+Flujo de trabajo recomendado:
+
+1. Crear una rama a partir de `master` para cada tarea.
+2. Confirmar los cambios y subir la rama al repositorio.
+3. Abrir un pull request hacia `master`: el pipeline ejecuta las pruebas automáticamente.
+4. Integrar una vez que la revisión y el pipeline estén en verde.
+
+## Actividades pendientes
+
+1. Agregar validaciones con Bean Validation y probar que devuelvan `400`.
+2. Añadir endpoints `PUT`/`PATCH` y sus pruebas correspondientes.

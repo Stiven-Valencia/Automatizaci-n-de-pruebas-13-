@@ -45,6 +45,13 @@ class ProductoServiceTest {
     void stockNegativoLanzaIllegalArgument() {
         assertThatThrownBy(() -> service.crear("Impresora", new BigDecimal("150.00"), -1))
             .isInstanceOf(IllegalArgumentException.class);
-}
+    }
+
+    @Test
+    void obtenerProductoNoExistenteLanzaExcepcion() {
+        assertThatThrownBy(() -> service.obtenerPorId(999L))
+            .isInstanceOf(NotFoundException.class);
+    }
+
 
 }

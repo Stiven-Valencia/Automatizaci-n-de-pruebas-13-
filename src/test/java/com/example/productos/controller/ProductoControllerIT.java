@@ -17,6 +17,8 @@ import java.math.BigDecimal;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -38,13 +40,19 @@ class ProductoControllerIT {
         repository.deleteAll();
         Producto p = new Producto("Laptop", new BigDecimal("2500.00"), 2);
         existingId = repository.save(p).getId();
+        repository.save(new Producto("Mouse", new BigDecimal("80.00"), 5));
+
     }
 
     @Test
     void listarProductosDevuelve200() throws Exception {
         mockMvc.perform(get("/productos"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[*].nombre", containsInAnyOrder("Laptop", "Mouse")));
+
     }
 
     @Test
@@ -79,6 +87,9 @@ class ProductoControllerIT {
     void eliminarProductoDevuelve204() throws Exception {
         mockMvc.perform(delete("/productos/{id}", existingId))
                 .andExpect(status().isNoContent());
+                
+        mockMvc.perform(get("/productos/{id}", existingId))
+        .andExpect(status().isNotFound());
     }
 
     @Test
