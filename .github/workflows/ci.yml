@@ -19,6 +19,11 @@ jobs:
               distribution: temurin
               cache: maven
 
+          - name: Configurar Python 3
+            uses: actions/setup-python@v5
+            with:
+              python-version: '3.12'
+
           - name: Ejecutar las pruebas
             run: mvn -B clean verify
 
@@ -28,5 +33,6 @@ jobs:
             with:
               name: reportes-pruebas
               path: |
+                target/reporte-pruebas.html
                 target/reports/
                 target/site/jacoco/

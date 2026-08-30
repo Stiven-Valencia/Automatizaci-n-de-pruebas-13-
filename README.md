@@ -73,6 +73,7 @@ curl -X DELETE http://localhost:8080/productos/1
 
 - Java 17 o superior
 - Maven 3.9 o superior
+- Python 3.8 o superior (solo para generar el reporte unificado de pruebas)
 
 Verifica tu instalación antes de empezar:
 
@@ -128,9 +129,17 @@ Tras `mvn clean verify` se generan automáticamente:
 
 | Reporte | Ruta |
 |---|---|
+| **Reporte unificado** (resumen, detalle de cada prueba y cobertura) | **`target/reporte-pruebas.html`** |
 | Pruebas de repositorio y servicio | `target/reports/surefire.html` |
 | Pruebas del controlador REST | `target/reports/failsafe.html` |
 | Cobertura de código | `target/site/jacoco/index.html` |
+
+El **reporte unificado** es el que conviene abrir primero: reúne en una sola página el
+total de pruebas, cuántas pasaron, la duración, el detalle de cada prueba con su
+descripción legible (declarada con `@DisplayName`) y la cobertura por clase. Cuando una
+prueba falla, muestra además el mensaje de la aserción, sin necesidad de revisar el log
+de Maven. Lo genera `tools/reporte.py` a partir de los XML de surefire y failsafe y del
+CSV de JaCoCo.
 
 Cobertura actual:
 
@@ -147,9 +156,9 @@ El 20 % restante corresponde a los métodos `equals`/`hashCode` de la entidad y 
 ## Integración continua
 
 El workflow `.github/workflows/ci.yml` ejecuta `mvn clean verify` en cada push y pull
-request, sobre una máquina Ubuntu limpia con JDK 21. Al terminar publica los tres
-reportes como un artefacto descargable desde la pestaña **Actions** del repositorio,
-incluso si alguna prueba falla.
+request, sobre una máquina Ubuntu limpia con JDK 21 y Python 3.12. Al terminar publica
+todos los reportes como un artefacto descargable desde la pestaña **Actions** del
+repositorio, incluso si alguna prueba falla.
 
 ---
 
@@ -157,6 +166,7 @@ incluso si alguna prueba falla.
 
 ```
 ├─ .github/workflows/ci.yml            # Pipeline de integración continua
+├─ tools/reporte.py                    # Genera el reporte unificado de pruebas
 ├─ pom.xml                             # Dependencias y plugins de construcción
 └─ src/
    ├─ main/

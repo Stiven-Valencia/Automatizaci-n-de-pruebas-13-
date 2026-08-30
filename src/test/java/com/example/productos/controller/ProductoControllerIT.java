@@ -4,6 +4,7 @@ import com.example.productos.domain.Producto;
 import com.example.productos.repository.ProductoRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -45,6 +46,7 @@ class ProductoControllerIT {
     }
 
     @Test
+    @DisplayName("GET /productos devuelve 200 con la lista completa")
     void listarProductosDevuelve200() throws Exception {
         mockMvc.perform(get("/productos"))
                 .andExpect(status().isOk())
@@ -56,6 +58,7 @@ class ProductoControllerIT {
     }
 
     @Test
+    @DisplayName("POST /productos crea el producto y devuelve 201")
     void crearProductoDevuelve201() throws Exception {
         var body = objectMapper.writeValueAsString(new java.util.HashMap<String, Object>() {{
             put("nombre", "Auriculares");
@@ -71,6 +74,7 @@ class ProductoControllerIT {
     }
 
     @Test
+    @DisplayName("GET /productos/{id} devuelve 200 con el producto correcto")
     void obtenerProductoPorIdExistenteDevuelve200() throws Exception {
         mockMvc.perform(get("/productos/{id}", existingId))
                 .andExpect(status().isOk())
@@ -78,12 +82,14 @@ class ProductoControllerIT {
     }
 
     @Test
+    @DisplayName("GET /productos/{id} devuelve 404 si no existe")
     void obtenerProductoInexistenteDevuelve404() throws Exception {
         mockMvc.perform(get("/productos/{id}", 9999))
                 .andExpect(status().isNotFound());
     }
 
     @Test
+    @DisplayName("DELETE /productos/{id} elimina y devuelve 204")
     void eliminarProductoDevuelve204() throws Exception {
         mockMvc.perform(delete("/productos/{id}", existingId))
                 .andExpect(status().isNoContent());
@@ -93,6 +99,7 @@ class ProductoControllerIT {
     }
 
     @Test
+    @DisplayName("DELETE /productos/{id} devuelve 404 si no existe")
     void eliminarProductoInexistenteDevuelve404() throws Exception {
         mockMvc.perform(delete("/productos/{id}", 9999))
             .andExpect(status().isNotFound());
