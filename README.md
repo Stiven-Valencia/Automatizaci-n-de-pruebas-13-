@@ -1,11 +1,17 @@
 # API de Productos — Pruebas de Integración con Spring Boot
 
-API REST para la gestión de productos, construida con Spring Boot 3.5 y base de datos
-H2 en memoria. El proyecto sirve como caso de estudio de **pruebas de integración
-automatizadas**: cubre las tres capas de la aplicación (controlador, servicio y
-repositorio) con 15 pruebas que se ejecutan automáticamente en cada cambio.
+[![CI](https://github.com/Stiven-Valencia/Automatizaci-n-de-pruebas-13-/actions/workflows/ci.yml/badge.svg)](https://github.com/Stiven-Valencia/Automatizaci-n-de-pruebas-13-/actions/workflows/ci.yml)
 
-## Tecnologías
+API REST para la gestión de productos, construida con Spring Boot 3.5 y base de datos
+H2 en memoria. El proyecto es un caso de estudio de **pruebas de integración
+automatizadas**: cubre sus tres capas —controlador, servicio y repositorio— con 15
+pruebas que se ejecutan en cada cambio y producen evidencia verificable de lo que la
+API respondió.
+
+**Contenido:** [Qué hace](#qué-hace-la-aplicación) · [Arquitectura](#arquitectura) ·
+[Requisitos](#requisitos) · [Ejecución](#ejecutar-la-aplicación) ·
+[Pruebas](#estrategia-de-pruebas) · [Reportes](#reportes) ·
+[Integración continua](#integración-continua) · [Convenciones](#convenciones-del-proyecto)
 
 | Componente | Versión |
 |---|---|
@@ -30,7 +36,7 @@ Expone un CRUD de productos sobre una base de datos en memoria. Cada producto ti
 | `precio` | BigDecimal | Obligatorio, 12 dígitos con 2 decimales, no negativo |
 | `stock` | Integer | Obligatorio, no negativo |
 
-Reglas de negocio implementadas en `ProductoService`:
+Reglas de negocio, implementadas en `ProductoService`:
 
 - El precio no puede ser negativo → `IllegalArgumentException`
 - El stock no puede ser negativo → `IllegalArgumentException`
@@ -44,8 +50,6 @@ Reglas de negocio implementadas en `ProductoService`:
 | `POST` | `/productos` | `201` | Crea un producto |
 | `GET` | `/productos/{id}` | `200` · `404` | Consulta un producto por id |
 | `DELETE` | `/productos/{id}` | `204` · `404` | Elimina un producto por id |
-
-Ejemplos de uso:
 
 ```bash
 # Listar productos
@@ -69,6 +73,46 @@ curl -X DELETE http://localhost:8080/productos/1
 
 ---
 
+## Arquitectura
+
+La aplicación sigue la separación clásica en tres capas. Cada petición las atraviesa
+en orden y cada capa tiene una única responsabilidad:
+
+```
+   HTTP                                            
+    │                                              
+    ▼                                              
+┌─────────────────────┐                            
+│ ProductoController  │  Traduce HTTP ↔ objetos:   
+│ @RestController     │  lee el cuerpo, elige el   
+│                     │  código de respuesta y     
+│                     │  convierte NotFoundException
+│                     │  en un 404                 
+└──────────┬──────────┘                            
+           ▼                                       
+┌─────────────────────┐                            
+│ ProductoService     │  Reglas de negocio:        
+│ @Service            │  valida precio y stock,    
+│ @Transactional      │  lanza NotFoundException   
+└──────────┬──────────┘                            
+           ▼                                       
+┌─────────────────────┐                            
+│ ProductoRepository  │  Acceso a datos, sin SQL   
+│ JpaRepository       │  escrito a mano            
+└──────────┬──────────┘                            
+           ▼                                       
+┌─────────────────────┐                            
+│ H2 en memoria       │  Se crea al arrancar y     
+│ Entidad Producto    │  se pierde al detener      
+└─────────────────────┘                            
+```
+
+El punto clave del diseño: **las excepciones son del dominio, no de HTTP**. El servicio
+lanza `NotFoundException` sin saber que existe un código 404; es el controlador quien
+decide esa traducción. Por eso el servicio se puede probar sin levantar un servidor web.
+
+---
+
 ## Requisitos
 
 - Java 17 o superior
@@ -80,6 +124,7 @@ Verifica tu instalación antes de empezar:
 ```bash
 java -version
 mvn -v
+python --version
 ```
 
 ## Ejecutar la aplicación
@@ -97,7 +142,9 @@ Para entrar a la consola H2: JDBC URL `jdbc:h2:mem:prodapp`, usuario `sa`, contr
 vacía. Al ser una base de datos en memoria, **los datos se pierden al detener la
 aplicación**.
 
-## Ejecutar las pruebas
+---
+
+## Estrategia de pruebas
 
 ```bash
 mvn clean verify
@@ -111,17 +158,39 @@ mvn clean verify
 | surefire | `*Test` | 9 | `mvn test` y `mvn verify` |
 | failsafe | `*IT` | 6 | solo `mvn verify` |
 
-### Suite de pruebas
+Esta separación es deliberada: surefire es el corredor de pruebas rápidas y failsafe el
+de pruebas de integración, que además garantiza que se ejecute la fase de limpieza
+aunque alguna falle.
 
-| Clase | Tipo | Nº | Qué valida |
+### Los tres niveles
+
+Cada nivel prueba una cosa distinta y usa la herramienta adecuada para ella:
+
+| Clase | Anotación | Nº | Qué prueba y cómo |
 |---|---|---|---|
-| `ProductoRepositoryTest` | `@DataJpaTest` | 4 | Guardado, consulta por id, eliminación y carga de los datos iniciales |
-| `ProductoServiceTest` | `@SpringBootTest` | 5 | Lógica de negocio y manejo de excepciones |
-| `ProductoControllerIT` | `@SpringBootTest` + `MockMvc` | 6 | Los cuatro endpoints, incluidos sus códigos de error |
+| `ProductoRepositoryTest` | `@DataJpaTest` | 4 | Persistencia real contra H2. Levanta **solo** la capa JPA, no el contexto completo, así que arranca en milisegundos |
+| `ProductoServiceTest` | `@SpringBootTest` | 5 | Reglas de negocio y excepciones con el contexto completo de Spring, sin pasar por HTTP |
+| `ProductoControllerIT` | `@SpringBootTest` + `@AutoConfigureMockMvc` | 6 | Los cuatro endpoints extremo a extremo. MockMvc simula las peticiones sin abrir un puerto real |
 
-Las pruebas usan el perfil `test` (`application-test.properties`), que apunta a una base
-de datos H2 independiente de la aplicación y la recrea en cada ejecución. Los datos
-iniciales están en `src/test/resources/data.sql`.
+### Aislamiento entre pruebas
+
+Tres mecanismos garantizan que ninguna prueba dependa de otra ni del orden en que se
+ejecuten:
+
+1. **Perfil `test` propio.** Las pruebas usan `application-test.properties`, que apunta
+   a la base `prodapp_test` —distinta de la de la aplicación— con `ddl-auto=create-drop`:
+   el esquema se crea al arrancar y se destruye al terminar.
+2. **Rollback automático.** Las tres clases son transaccionales, así que todo lo que una
+   prueba escribe se deshace al terminar. La siguiente encuentra la base igual que la
+   dejó el arranque.
+3. **Datos iniciales conocidos.** `src/test/resources/data.sql` inserta tres productos al
+   crear el contexto, y `@BeforeEach` prepara los datos específicos de cada clase.
+
+> **Detalle de configuración:** el `data.sql` requiere
+> `spring.jpa.defer-datasource-initialization=true`. Sin esa propiedad, Spring ejecuta
+> el script **antes** de que Hibernate cree las tablas y falla con *"Table not found"*.
+
+---
 
 ## Reportes
 
@@ -136,14 +205,13 @@ Tras `mvn clean verify` se generan automáticamente:
 
 El **reporte unificado** es el que conviene abrir primero: reúne en una sola página el
 total de pruebas, cuántas pasaron, la duración, el detalle de cada prueba con su
-descripción legible (declarada con `@DisplayName`) y la cobertura por clase. Cuando una
-prueba falla, muestra además el mensaje de la aserción, sin necesidad de revisar el log
-de Maven. Lo genera `tools/reporte.py` a partir de los XML de surefire y failsafe y del
-CSV de JaCoCo.
+descripción legible y la cobertura por clase. Cuando una prueba falla, muestra además el
+mensaje de la aserción, sin necesidad de revisar el log de Maven. Lo genera
+`tools/reporte.py` a partir de los XML de surefire y failsafe y del CSV de JaCoCo.
 
-Para las pruebas del controlador incluye la **evidencia real de cada petición**: el
-verbo y la ruta, el cuerpo enviado, el código HTTP devuelto y el JSON de respuesta,
-sin alterar ningún valor. Por ejemplo:
+Para las pruebas del controlador incluye la **evidencia real de cada petición**: el verbo
+y la ruta, el cuerpo enviado, el código HTTP devuelto y el JSON de respuesta, sin alterar
+ningún valor:
 
 ```
 GET /productos
@@ -154,20 +222,26 @@ GET /productos
 ]
 ```
 
-Esa evidencia la registra la clase de apoyo `EvidenciaHttp`, enganchada a cada llamada
-de MockMvc con `.andDo(...)`, que vuelca lo ocurrido en `target/evidencias.tsv`.
+Esa evidencia la registra la clase de apoyo `EvidenciaHttp`, enganchada a cada llamada de
+MockMvc con `.andDo(...)` **antes** de las aserciones: así queda registrada la respuesta
+aunque la prueba falle después.
 
-Cobertura actual:
+### Cobertura
 
 | Clase | Cobertura |
 |---|---|
 | `ProductoService` | 100 % |
 | `ProductoController` | 100 % |
 | `NotFoundException` | 100 % |
+| `Producto` | 53 % |
+| `Application` | 33 % |
 | **Total del proyecto** | **80 %** |
 
-El 20 % restante corresponde a los métodos `equals`/`hashCode` de la entidad y al
-`main()` de Spring Boot: código sin lógica de negocio, cuya cobertura no aportaría valor.
+La lógica de negocio está cubierta al 100 %. El resto son los `equals`/`hashCode` de la
+entidad y el `main()` de Spring Boot: código sin decisiones, cuya cobertura subiría el
+porcentaje sin proteger de ningún error real.
+
+---
 
 ## Integración continua
 
@@ -175,6 +249,9 @@ El workflow `.github/workflows/ci.yml` ejecuta `mvn clean verify` en cada push y
 request, sobre una máquina Ubuntu limpia con JDK 21 y Python 3.12. Al terminar publica
 todos los reportes como un artefacto descargable desde la pestaña **Actions** del
 repositorio, incluso si alguna prueba falla.
+
+Que el entorno sea limpio en cada ejecución es parte del valor: descarta los fallos del
+tipo "en mi máquina funciona", porque ahí no existe nada instalado localmente.
 
 ---
 
@@ -195,21 +272,56 @@ repositorio, incluso si alguna prueba falla.
    │  └─ resources/
    │     └─ application.properties     # Configuración H2 de ejecución
    └─ test/
-      ├─ java/com/example/productos/   # Pruebas de las tres capas
-      │  └─ soporte/EvidenciaHttp.java # Registra la evidencia HTTP de MockMvc
+      ├─ java/com/example/productos/
+      │  ├─ repository/ service/ controller/   # Pruebas de las tres capas
+      │  └─ soporte/EvidenciaHttp.java         # Registra la evidencia HTTP
       └─ resources/
          ├─ application-test.properties # Perfil test: H2 propia, create-drop
          └─ data.sql                    # Datos iniciales de prueba
 ```
+
+---
+
+## Convenciones del proyecto
+
+Reglas a respetar al añadir código, para que la suite y los reportes sigan funcionando:
+
+**Nombres de las clases de prueba.** El sufijo decide qué plugin la ejecuta, así que no
+es decorativo:
+
+- `...Test` → repositorio y servicio (surefire)
+- `...IT` → pruebas que atraviesan la API REST (failsafe)
+
+Una prueba de API llamada `...Test` se ejecutaría en la fase equivocada; una de servicio
+llamada `...IT` no se ejecutaría con `mvn test`.
+
+**Cada prueba lleva `@DisplayName`** con una frase que describa qué valida. Ese texto es
+el que aparece en el reporte; sin él se muestra el nombre del método, que se lee peor.
+
+**Estructura del cuerpo:** patrón Arrange / Act / Assert, y aserciones con AssertJ
+(`assertThat(...)`), como el resto de la suite.
+
+**Pruebas de MockMvc:** encadena `.andDo(EvidenciaHttp.registrar(pruebaActual))` justo
+después del `perform(...)` y antes de las aserciones, para que la petición quede
+registrada en el reporte.
+
+**Prefiere aserciones robustas.** `hasSizeGreaterThanOrEqualTo(3)` en lugar de un tamaño
+exacto, y `containsInAnyOrder(...)` en lugar de comparar por posición: el orden de
+`findAll()` no está garantizado y una prueba frágil termina borrándose.
+
+**No persigas el 100 % de cobertura.** Cubre las decisiones —condiciones, validaciones,
+manejo de errores—, no los getters ni el `main()`.
+
+---
 
 ## Ramas
 
 | Rama | Propósito |
 |---|---|
 | `master` | Rama principal. Contiene el código estable del proyecto. |
-| `pruebas-integracion` | Configuración de failsafe y perfil de test, datos iniciales, cobertura con JaCoCo y pipeline de CI. |
+| `pruebas-integracion` | Configuración de failsafe y perfil de test, datos iniciales, cobertura con JaCoCo, reporte unificado y pipeline de CI. |
 
-Flujo de trabajo recomendado:
+Flujo de trabajo:
 
 1. Crear una rama a partir de `master` para cada tarea.
 2. Confirmar los cambios y subir la rama al repositorio.
