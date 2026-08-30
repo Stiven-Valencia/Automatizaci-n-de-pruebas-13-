@@ -18,6 +18,7 @@ TARGET = RAIZ / "target"
 SALIDA = TARGET / "reporte-pruebas.html"
 
 DESCRIPCIONES = {
+    "ProductoTest": ("JUnit 5", "Entidad de dominio"),
     "ProductoRepositoryTest": ("@DataJpaTest", "Capa de repositorio"),
     "ProductoServiceTest": ("@SpringBootTest", "Capa de servicio"),
     "ProductoControllerIT": ("@SpringBootTest + MockMvc", "Capa de controlador REST"),

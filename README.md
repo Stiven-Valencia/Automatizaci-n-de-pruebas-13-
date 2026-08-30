@@ -4,7 +4,7 @@
 
 API REST para la gestión de productos, construida con Spring Boot 3.5 y base de datos
 H2 en memoria. El proyecto es un caso de estudio de **pruebas de integración
-automatizadas**: cubre sus tres capas —controlador, servicio y repositorio— con 15
+automatizadas**: cubre sus tres capas —controlador, servicio y repositorio— con 20
 pruebas que se ejecutan en cada cambio y producen evidencia verificable de lo que la
 API respondió.
 
@@ -155,19 +155,20 @@ mvn clean verify
 
 | Plugin | Clases que ejecuta | Pruebas | Se ejecutan con |
 |---|---|---|---|
-| surefire | `*Test` | 9 | `mvn test` y `mvn verify` |
+| surefire | `*Test` | 14 | `mvn test` y `mvn verify` |
 | failsafe | `*IT` | 6 | solo `mvn verify` |
 
 Esta separación es deliberada: surefire es el corredor de pruebas rápidas y failsafe el
 de pruebas de integración, que además garantiza que se ejecute la fase de limpieza
 aunque alguna falle.
 
-### Los tres niveles
+### Qué prueba cada clase
 
 Cada nivel prueba una cosa distinta y usa la herramienta adecuada para ella:
 
 | Clase | Anotación | Nº | Qué prueba y cómo |
 |---|---|---|---|
+| `ProductoTest` | JUnit 5 puro | 5 | Identidad de la entidad: cuándo dos productos se consideran el mismo registro |
 | `ProductoRepositoryTest` | `@DataJpaTest` | 4 | Persistencia real contra H2. Levanta **solo** la capa JPA, no el contexto completo, así que arranca en milisegundos |
 | `ProductoServiceTest` | `@SpringBootTest` | 5 | Reglas de negocio y excepciones con el contexto completo de Spring, sin pasar por HTTP |
 | `ProductoControllerIT` | `@SpringBootTest` + `@AutoConfigureMockMvc` | 6 | Los cuatro endpoints extremo a extremo. MockMvc simula las peticiones sin abrir un puerto real |
@@ -241,7 +242,7 @@ service.eliminar(999)
 → NotFoundException: Producto no encontrado: 999
 ```
 
-De este modo ninguna fila del reporte se sostiene solo en su descripción: las 15 pruebas
+De este modo ninguna fila del reporte se sostiene solo en su descripción: las 20 pruebas
 muestran qué devolvió realmente el código.
 
 ### Cobertura
@@ -250,14 +251,14 @@ muestran qué devolvió realmente el código.
 |---|---|
 | `ProductoService` | 100 % |
 | `ProductoController` | 100 % |
+| `Producto` | 100 % |
 | `NotFoundException` | 100 % |
-| `Producto` | 53 % |
 | `Application` | 33 % |
-| **Total del proyecto** | **80 %** |
+| **Total del proyecto** | **96 %** |
 
-La lógica de negocio está cubierta al 100 %. El resto son los `equals`/`hashCode` de la
-entidad y el `main()` de Spring Boot: código sin decisiones, cuya cobertura subiría el
-porcentaje sin proteger de ningún error real.
+Todo el código con decisiones está cubierto. Lo único que queda fuera es el `main()` de
+Spring Boot, que solo arranca el contexto: probarlo levantaría la aplicación entera para
+no verificar nada, así que se deja deliberadamente sin cubrir.
 
 ---
 
