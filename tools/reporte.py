@@ -164,6 +164,25 @@ def leer_evidencias():
     return registros
 
 
+def leer_evidencias_datos():
+    """Lee los resultados reales de las pruebas de repositorio y de servicio."""
+    archivo = TARGET / "evidencias-datos.tsv"
+    if not archivo.is_file():
+        return {}
+    registros = {}
+    for linea in archivo.read_text(encoding="utf-8").splitlines():
+        campos = linea.split("\t")
+        if len(campos) < 3:
+            continue
+        prueba, operacion, resultado = campos[:3]
+        registros.setdefault(prueba, []).append({
+            "operacion": operacion,
+            # Evidencia escribe los saltos como \n literal para caber en una linea
+            "resultado": resultado.replace("\\n", SALTO),
+        })
+    return registros
+
+
 def leer_cobertura():
     archivo = TARGET / "site" / "jacoco" / "jacoco.csv"
     if not archivo.is_file():
@@ -311,6 +330,7 @@ def generar():
         return 1
 
     evidencias = leer_evidencias()
+    datos = leer_evidencias_datos()
     cobertura, cobertura_global = leer_cobertura()
     total = sum(len(s["pruebas"]) for s in suites)
     fallos = sum(1 for s in suites for p in s["pruebas"] if p["estado"] == "fallo")
@@ -342,6 +362,11 @@ def generar():
                 if recibido:
                     bloque.append(escape(recibido))
                 trozos.append(FILA_EVIDENCIA.format(texto=SALTO.join(bloque)))
+            for registro in datos.get(prueba["nombre"], []):
+                trozos.append(FILA_EVIDENCIA.format(texto=SALTO.join([
+                    '<span class="peticion">{}</span>'.format(escape(registro["operacion"])),
+                    '<span class="estado-ok">&rarr;</span> ' + escape(registro["resultado"]),
+                ])))
             if prueba["detalle"]:
                 trozos.append(FILA_DETALLE.format(texto=escape(prueba["detalle"])))
         filas = "".join(trozos)

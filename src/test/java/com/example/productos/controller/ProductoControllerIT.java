@@ -104,16 +104,16 @@ class ProductoControllerIT {
                 .andExpect(status().isNoContent());
                 
         mockMvc.perform(get("/productos/{id}", existingId))
-        .andDo(EvidenciaHttp.registrar(pruebaActual))
-        .andExpect(status().isNotFound());
+                .andDo(EvidenciaHttp.registrar(pruebaActual))
+                .andExpect(status().isNotFound());
     }
 
     @Test
     @DisplayName("DELETE /productos/{id} devuelve 404 si no existe")
     void eliminarProductoInexistenteDevuelve404() throws Exception {
         mockMvc.perform(delete("/productos/{id}", 9999))
-            .andDo(EvidenciaHttp.registrar(pruebaActual))
-            .andExpect(status().isNotFound());
+                .andDo(EvidenciaHttp.registrar(pruebaActual))
+                .andExpect(status().isNotFound());
     }
 
 }
