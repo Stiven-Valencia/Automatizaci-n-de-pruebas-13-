@@ -171,7 +171,7 @@ PLANTILLA = """<!doctype html>
 <body>
 <div class="envoltorio">
 <header>
-  <h1>Reporte de pruebas de integracion</h1>
+  <h1>Reporte de pruebas de integración</h1>
   <p class="sub">API de Productos &middot; Spring Boot 3.5 &middot; generado el {ahora}</p>
 </header>
 
@@ -179,7 +179,7 @@ PLANTILLA = """<!doctype html>
   <div class="kpi"><div class="valor">{total}</div><div class="etiqueta">Pruebas</div></div>
   <div class="kpi verde"><div class="valor">{exitosas}</div><div class="etiqueta">Exitosas</div></div>
   <div class="kpi {clase_fallos}"><div class="valor">{fallos}</div><div class="etiqueta">Fallidas</div></div>
-  <div class="kpi"><div class="valor">{duracion:.1f} s</div><div class="etiqueta">Duracion</div></div>
+  <div class="kpi"><div class="valor">{duracion:.1f} s</div><div class="etiqueta">Duración</div></div>
   {kpi_cobertura}
 </div>
 
@@ -208,10 +208,10 @@ FILA_COBERTURA = ('<tr><td>{clase}</td><td class="barra-celda"><div class="barra
                   '<div class="{extra}" style="width:{pct:.0f}%"></div></div></td>'
                   '<td class="tiempo">{cub}/{tot}</td><td class="pct">{pct:.0f}%</td></tr>')
 
-BLOQUE_COBERTURA = ('<section><h2>Cobertura de codigo</h2>'
-                    '<p class="meta">Lineas ejercitadas por las pruebas, medido con JaCoCo</p>'
+BLOQUE_COBERTURA = ('<section><h2>Cobertura de código</h2>'
+                    '<p class="meta">Líneas ejercitadas por las pruebas, medido con JaCoCo</p>'
                     '<table><thead><tr><th>Clase</th><th></th>'
-                    '<th style="text-align:right">Lineas</th>'
+                    '<th style="text-align:right">Líneas</th>'
                     '<th style="text-align:right">%</th></tr></thead>'
                     '<tbody>{filas}</tbody></table></section>')
 
