@@ -5,6 +5,7 @@ Lee los XML que dejan surefire y failsafe, junto con el CSV de JaCoCo, y produce
 un unico archivo autocontenido en target/reporte-pruebas.html
 """
 import csv
+import json
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -83,6 +84,86 @@ def leer_suites():
     return suites
 
 
+SALTO = "\n"
+
+TEXTOS_HTTP = {
+    200: "OK", 201: "Created", 204: "No Content", 400: "Bad Request",
+    404: "Not Found", 405: "Method Not Allowed", 500: "Internal Server Error",
+}
+
+
+def formatear_json(texto, limite=600):
+    """Indenta el JSON respetando los valores originales.
+
+    No se usa json.loads/json.dumps a proposito: eso reinterpretaria los
+    numeros y mostraria 2500.0 donde la API devolvio 2500.00. Aqui solo se
+    reparte el texto en lineas, sin tocar ningun valor.
+    """
+    texto = (texto or "").strip()
+    if not texto or texto[0] not in "{[":
+        return texto
+
+    salida = []
+    nivel = 0
+    en_cadena = False
+    escapando = False
+
+    for caracter in texto:
+        if en_cadena:
+            salida.append(caracter)
+            if escapando:
+                escapando = False
+            elif caracter == "\\":
+                escapando = True
+            elif caracter == '"':
+                en_cadena = False
+            continue
+
+        if caracter == '"':
+            en_cadena = True
+            salida.append(caracter)
+        elif caracter in "{[":
+            nivel += 1
+            salida.append(caracter + SALTO + "  " * nivel)
+        elif caracter in "}]":
+            nivel -= 1
+            salida.append(SALTO + "  " * nivel + caracter)
+        elif caracter == ",":
+            salida.append(caracter + SALTO + "  " * nivel)
+        elif caracter == ":":
+            salida.append(": ")
+        elif caracter.isspace():
+            continue
+        else:
+            salida.append(caracter)
+
+    bonito = "".join(salida)
+    if len(bonito) > limite:
+        bonito = bonito[:limite] + SALTO + "... (recortado)"
+    return bonito
+
+
+def leer_evidencias():
+    """Lee las peticiones HTTP reales que registro EvidenciaHttp durante las pruebas."""
+    archivo = TARGET / "evidencias.tsv"
+    if not archivo.is_file():
+        return {}
+    registros = {}
+    for linea in archivo.read_text(encoding="utf-8").splitlines():
+        campos = linea.split("\t")
+        if len(campos) < 6:
+            continue
+        prueba, metodo, ruta, envio, estado, cuerpo = campos[:6]
+        registros.setdefault(prueba, []).append({
+            "metodo": metodo,
+            "ruta": ruta,
+            "envio": envio,
+            "estado": estado,
+            "cuerpo": cuerpo,
+        })
+    return registros
+
+
 def leer_cobertura():
     archivo = TARGET / "site" / "jacoco" / "jacoco.csv"
     if not archivo.is_file():
@@ -156,6 +237,10 @@ td.pct { width: 62px; text-align: right; font-variant-numeric: tabular-nums; fon
 td.barra-celda { width: 45%; }
 tr.detalle td { padding-top: 0; border-bottom: 1px solid var(--borde); }
 tr.detalle code { display: block; background: var(--fallo-suave); color: var(--fallo); border-radius: 6px; padding: 8px 10px; font-size: 0.78rem; white-space: pre-wrap; word-break: break-word; }
+tr.evidencia td { padding-top: 0; }
+tr.evidencia pre { margin: 0 0 4px; background: var(--fondo); border: 1px solid var(--borde); border-left: 3px solid var(--acento); border-radius: 6px; padding: 10px 12px; font-size: 0.76rem; line-height: 1.45; overflow-x: auto; font-family: "Cascadia Code", Consolas, "SF Mono", Menlo, monospace; }
+tr.evidencia .peticion { color: var(--texto); font-weight: 600; }
+tr.evidencia .estado-ok { color: var(--ok); font-weight: 600; }
 footer { color: var(--suave); font-size: 0.8rem; text-align: center; margin-top: 26px; }
 @media (max-width: 620px) { td.barra-celda { display: none; } body { padding: 20px 12px; } }
 """
@@ -195,6 +280,9 @@ PLANTILLA = """<!doctype html>
 FILA_PRUEBA = ('<tr><td class="estado"><span class="pastilla {clase}">{txt}</span></td>'
                '<td>{nombre}</td><td class="tiempo">{tiempo:.2f} s</td></tr>')
 
+FILA_EVIDENCIA = ('<tr class="evidencia"><td></td><td colspan="2">'
+                  '<pre>{texto}</pre></td></tr>')
+
 FILA_DETALLE = ('<tr class="detalle"><td></td>'
                 '<td colspan="2"><code>{texto}</code></td></tr>')
 
@@ -222,6 +310,7 @@ def generar():
         print("No se encontraron resultados. Ejecuta primero: mvn clean verify")
         return 1
 
+    evidencias = leer_evidencias()
     cobertura, cobertura_global = leer_cobertura()
     total = sum(len(s["pruebas"]) for s in suites)
     fallos = sum(1 for s in suites for p in s["pruebas"] if p["estado"] == "fallo")
@@ -240,6 +329,19 @@ def generar():
                 nombre=escape(legible(prueba["nombre"])),
                 tiempo=prueba["tiempo"],
             ))
+            for llamada in evidencias.get(prueba["nombre"], []):
+                bloque = ['<span class="peticion">{} {}</span>'.format(
+                    escape(llamada["metodo"]), escape(llamada["ruta"]))]
+                enviado = formatear_json(llamada["envio"])
+                if enviado:
+                    bloque.append(escape(enviado))
+                texto_http = TEXTOS_HTTP.get(int(llamada["estado"]), "")
+                bloque.append('<span class="estado-ok">&rarr; {} {}</span>'.format(
+                    escape(llamada["estado"]), escape(texto_http)))
+                recibido = formatear_json(llamada["cuerpo"])
+                if recibido:
+                    bloque.append(escape(recibido))
+                trozos.append(FILA_EVIDENCIA.format(texto=SALTO.join(bloque)))
             if prueba["detalle"]:
                 trozos.append(FILA_DETALLE.format(texto=escape(prueba["detalle"])))
         filas = "".join(trozos)

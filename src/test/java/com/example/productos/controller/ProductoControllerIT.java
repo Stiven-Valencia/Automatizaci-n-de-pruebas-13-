@@ -2,10 +2,12 @@ package com.example.productos.controller;
 
 import com.example.productos.domain.Producto;
 import com.example.productos.repository.ProductoRepository;
+import com.example.productos.soporte.EvidenciaHttp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -35,9 +37,11 @@ class ProductoControllerIT {
     private ObjectMapper objectMapper;
 
     private Long existingId;
+    private String pruebaActual;
 
     @BeforeEach
-    void setUp() {
+    void setUp(TestInfo info) {
+        pruebaActual = info.getDisplayName();
         repository.deleteAll();
         Producto p = new Producto("Laptop", new BigDecimal("2500.00"), 2);
         existingId = repository.save(p).getId();
@@ -49,6 +53,7 @@ class ProductoControllerIT {
     @DisplayName("GET /productos devuelve 200 con la lista completa")
     void listarProductosDevuelve200() throws Exception {
         mockMvc.perform(get("/productos"))
+                .andDo(EvidenciaHttp.registrar(pruebaActual))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$").isArray())
@@ -68,6 +73,7 @@ class ProductoControllerIT {
         mockMvc.perform(post("/productos")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
+                .andDo(EvidenciaHttp.registrar(pruebaActual))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.nombre").value("Auriculares"));
@@ -77,6 +83,7 @@ class ProductoControllerIT {
     @DisplayName("GET /productos/{id} devuelve 200 con el producto correcto")
     void obtenerProductoPorIdExistenteDevuelve200() throws Exception {
         mockMvc.perform(get("/productos/{id}", existingId))
+                .andDo(EvidenciaHttp.registrar(pruebaActual))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(existingId));
     }
@@ -85,6 +92,7 @@ class ProductoControllerIT {
     @DisplayName("GET /productos/{id} devuelve 404 si no existe")
     void obtenerProductoInexistenteDevuelve404() throws Exception {
         mockMvc.perform(get("/productos/{id}", 9999))
+                .andDo(EvidenciaHttp.registrar(pruebaActual))
                 .andExpect(status().isNotFound());
     }
 
@@ -92,9 +100,11 @@ class ProductoControllerIT {
     @DisplayName("DELETE /productos/{id} elimina y devuelve 204")
     void eliminarProductoDevuelve204() throws Exception {
         mockMvc.perform(delete("/productos/{id}", existingId))
+                .andDo(EvidenciaHttp.registrar(pruebaActual))
                 .andExpect(status().isNoContent());
                 
         mockMvc.perform(get("/productos/{id}", existingId))
+        .andDo(EvidenciaHttp.registrar(pruebaActual))
         .andExpect(status().isNotFound());
     }
 
@@ -102,6 +112,7 @@ class ProductoControllerIT {
     @DisplayName("DELETE /productos/{id} devuelve 404 si no existe")
     void eliminarProductoInexistenteDevuelve404() throws Exception {
         mockMvc.perform(delete("/productos/{id}", 9999))
+            .andDo(EvidenciaHttp.registrar(pruebaActual))
             .andExpect(status().isNotFound());
     }
 

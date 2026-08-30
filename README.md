@@ -141,6 +141,22 @@ prueba falla, muestra además el mensaje de la aserción, sin necesidad de revis
 de Maven. Lo genera `tools/reporte.py` a partir de los XML de surefire y failsafe y del
 CSV de JaCoCo.
 
+Para las pruebas del controlador incluye la **evidencia real de cada petición**: el
+verbo y la ruta, el cuerpo enviado, el código HTTP devuelto y el JSON de respuesta,
+sin alterar ningún valor. Por ejemplo:
+
+```
+GET /productos
+→ 200 OK
+[
+  { "id": 4, "nombre": "Laptop", "precio": 2500.00, "stock": 2 },
+  { "id": 5, "nombre": "Mouse",  "precio": 80.00,   "stock": 5 }
+]
+```
+
+Esa evidencia la registra la clase de apoyo `EvidenciaHttp`, enganchada a cada llamada
+de MockMvc con `.andDo(...)`, que vuelca lo ocurrido en `target/evidencias.tsv`.
+
 Cobertura actual:
 
 | Clase | Cobertura |
