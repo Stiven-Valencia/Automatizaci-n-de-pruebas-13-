@@ -1,10 +1,12 @@
 package com.example.productos.repository;
 
 import com.example.productos.domain.Producto;
+import com.example.productos.soporte.Evidencia;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -23,9 +25,12 @@ class ProductoRepositoryTest {
     private ProductoRepository repository;
 
     private Producto productoPrueba;
+    private String pruebaActual;
 
     @BeforeEach
-    void setUp() {
+    void setUp(TestInfo info) {
+        pruebaActual = info.getDisplayName();
+
         // Datos iniciales de prueba
         productoPrueba = new Producto("Teclado Mecánico", new BigDecimal("99.99"), 10);
     }
@@ -35,6 +40,7 @@ class ProductoRepositoryTest {
     void guardarProducto_DebePersistirEnBaseDeDatos() {
         // Arrange & Act
         Producto guardado = repository.save(productoPrueba);
+        Evidencia.registrar(pruebaActual, "repository.save(producto)", guardado);
 
         // Assert
         assertThat(guardado.getId()).isNotNull();
@@ -49,6 +55,7 @@ class ProductoRepositoryTest {
 
         // Act
         Optional<Producto> encontrado = repository.findById(guardado.getId());
+        Evidencia.registrar(pruebaActual, "repository.findById(" + guardado.getId() + ")", encontrado);
 
         // Assert
         assertThat(encontrado).isPresent();
@@ -64,6 +71,8 @@ class ProductoRepositoryTest {
         // Act
         repository.deleteById(guardado.getId());
         Optional<Producto> eliminado = repository.findById(guardado.getId());
+        Evidencia.registrar(pruebaActual,
+                "repository.deleteById(" + guardado.getId() + ") y findById(" + guardado.getId() + ")", eliminado);
 
         // Assert
         assertThat(eliminado).isEmpty();
@@ -74,6 +83,7 @@ class ProductoRepositoryTest {
     void datosInicialesFueronCargados() {
         // Act
         List<Producto> productos = repository.findAll();
+        Evidencia.registrar(pruebaActual, "repository.findAll()", productos);
 
         // Assert
         assertThat(productos).hasSizeGreaterThanOrEqualTo(3);
