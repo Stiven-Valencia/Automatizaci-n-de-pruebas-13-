@@ -65,7 +65,7 @@ curl -X DELETE http://localhost:8080/productos/1
 
 > **Limitación conocida:** enviar un precio o stock negativo devuelve `500`, no `400`.
 > Las validaciones existen en el servicio, pero no hay un manejador que traduzca la
-> excepción a una respuesta HTTP adecuada. Lo resuelve la actividad pendiente 1.
+> excepción a una respuesta HTTP adecuada.
 
 ---
 
@@ -196,6 +196,7 @@ repositorio, incluso si alguna prueba falla.
    │     └─ application.properties     # Configuración H2 de ejecución
    └─ test/
       ├─ java/com/example/productos/   # Pruebas de las tres capas
+      │  └─ soporte/EvidenciaHttp.java # Registra la evidencia HTTP de MockMvc
       └─ resources/
          ├─ application-test.properties # Perfil test: H2 propia, create-drop
          └─ data.sql                    # Datos iniciales de prueba
@@ -214,8 +215,3 @@ Flujo de trabajo recomendado:
 2. Confirmar los cambios y subir la rama al repositorio.
 3. Abrir un pull request hacia `master`: el pipeline ejecuta las pruebas automáticamente.
 4. Integrar una vez que la revisión y el pipeline estén en verde.
-
-## Actividades pendientes
-
-1. Agregar validaciones con Bean Validation y probar que devuelvan `400`.
-2. Añadir endpoints `PUT`/`PATCH` y sus pruebas correspondientes.
