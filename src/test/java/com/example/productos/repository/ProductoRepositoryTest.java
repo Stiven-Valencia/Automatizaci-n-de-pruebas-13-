@@ -1,16 +1,21 @@
 package com.example.productos.repository;
 
 import com.example.productos.domain.Producto;
+
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ActiveProfiles("test")
 @DataJpaTest
 class ProductoRepositoryTest {
 
@@ -26,6 +31,7 @@ class ProductoRepositoryTest {
     }
 
     @Test
+    @DisplayName("Guardar un producto lo persiste con un id generado")
     void guardarProducto_DebePersistirEnBaseDeDatos() {
         // Arrange & Act
         Producto guardado = repository.save(productoPrueba);
@@ -36,6 +42,7 @@ class ProductoRepositoryTest {
     }
 
     @Test
+    @DisplayName("Buscar por id devuelve el producto guardado")
     void buscarPorId_DebeRetornarProducto() {
         // Arrange
         Producto guardado = repository.save(productoPrueba);
@@ -49,6 +56,7 @@ class ProductoRepositoryTest {
     }
 
     @Test
+    @DisplayName("Eliminar un producto lo borra de la base de datos")
     void eliminarProducto_DebeRemoverDeBaseDeDatos() {
         // Arrange
         Producto guardado = repository.save(productoPrueba);
@@ -60,4 +68,17 @@ class ProductoRepositoryTest {
         // Assert
         assertThat(eliminado).isEmpty();
     }
+
+    @Test
+    @DisplayName("Los datos iniciales de data.sql se cargan al arrancar")
+    void datosInicialesFueronCargados() {
+        // Act
+        List<Producto> productos = repository.findAll();
+
+        // Assert
+        assertThat(productos).hasSizeGreaterThanOrEqualTo(3);
+        assertThat(productos).extracting(Producto::getNombre)
+                .contains("cable test", "cable test2", "cable test3");
+    }
+
 }

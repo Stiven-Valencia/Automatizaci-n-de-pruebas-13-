@@ -1,0 +1,38 @@
+name: CI - Pruebas de Integración
+on:
+  push:
+    branches: [ master, pruebas-integracion ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Descargar el codigo
+            uses: actions/checkout@v4
+
+          - name: Configurar JDK 21
+            uses: actions/setup-java@v4
+            with:
+              java-version: '21'
+              distribution: temurin
+              cache: maven
+
+          - name: Configurar Python 3
+            uses: actions/setup-python@v5
+            with:
+              python-version: '3.12'
+
+          - name: Ejecutar las pruebas
+            run: mvn -B clean verify
+
+          - name: Publicar reportes HTML
+            if: always()
+            uses: actions/upload-artifact@v4
+            with:
+              name: reportes-pruebas
+              path: |
+                target/reporte-pruebas.html
+                target/reports/
+                target/site/jacoco/
